@@ -1,2 +1,5 @@
 sample_api/
 __pycache__/
+.env
+postgres-data/
+docker-compose.yml

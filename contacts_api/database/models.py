@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Boolean, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import DateTime
 from .db import engine
@@ -26,6 +26,8 @@ class User(Base):
     email = Column(String(250), nullable=False, unique=True)
     password = Column(String(100), nullable=False)
     created_at = Column('created_at', DateTime, default=func.now())
+    confirmed = Column(Boolean(), default=False)
+    avatar = Column(String(255), nullable=True)
     refresh_token = Column(String(255), nullable=True)
 
 Base.metadata.create_all(bind=engine)

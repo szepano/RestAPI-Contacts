@@ -1,4 +1,5 @@
 from typing import Optional
+import redis.asyncio as redis
 
 from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
@@ -9,13 +10,15 @@ from sqlalchemy.orm import Session
 
 from contacts_api.database.db import get_db
 from contacts_api.repository import users as repository_users
+from contacts_api.conf.config import settings
 
 
 class Auth:
     pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-    SECRET_KEY = 'secret_key'
-    ALGHORITM = 'HS256'
+    SECRET_KEY = settings.secret_key
+    ALGHORITM = settings.algorithm
     ouath2_scheme = OAuth2PasswordBearer(tokenUrl='/api/auth/login')
+    r = redis.Redis(host=settings.redis_host, port=settings.redis_port, db=0)
 
     def verify_password(self, plain_pass, hash_pass):
         return self.pwd_context.verify(plain_pass, hash_pass)
@@ -75,5 +78,21 @@ class Auth:
         if user is None:
             raise credentials_exception
         return user
+    
+    def create_email_token(self, data: dict):
+        to_encode = data.copy()
+        expire = datetime.utcnow() + timedelta(days=7)
+        to_encode.update({'iat': datetime.utcnow(), 'exp': expire})
+        token = jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGHORITM)
+        return token
+    
+    async def get_email_from_token(self, token: str):
+        try:
+            payload = jwt.decode(token, self.SECRET_KEY, algorithms=[self.ALGHORITM])
+            email = payload['sub']
+            return email
+        except JWTError as e:
+            print(e)
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail='Invalid token for email verification')
     
 auth_service = Auth()
