@@ -10,7 +10,6 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath('..'))
-print("Python path:", sys.path)
 project = 'contacts_api'
 copyright = '2024, Szczepan'
 author = 'Szczepan'

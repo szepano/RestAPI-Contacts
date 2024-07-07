@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -107,7 +108,7 @@ class TestContacts(unittest.IsolatedAsyncioTestCase):
         result = await update_contact(contact_id=1, body=updated_contact, user=self.user, db=self.session)
         self.assertEqual(result.first_name, updated_contact.first_name)
         self.assertEqual(result.email, updated_contact.email)
-        self.session.commit.asser_called_once()
+        self.session.commit.assert_called_once()
 
     async def test_update_contact_not_found(self):
 

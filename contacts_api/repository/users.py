@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from contacts_api.database.models import User
 from contacts_api.schemas import UserModel
 
-async def get_user_by_email(email: str, db: Session) -> User:
+async def get_user_by_email(email: str, db: Session) -> User | None:
     """Searches for an user in database by email
 
     :param email: email searched in database
@@ -10,9 +10,13 @@ async def get_user_by_email(email: str, db: Session) -> User:
     :param db: database session
     :type db: Session
     :return: user with searched email
-    :rtype: User
+    :rtype: User|None
     """
-    return db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        return None
+    else: 
+        return user
 
 async def create_user(body: UserModel, db: Session) -> User:
     """
