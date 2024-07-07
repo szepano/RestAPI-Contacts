@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>contacts_api.routes.auth &#8212; contacts_api 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=0f882399" />
+    <script src="../../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">contacts_api 0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">contacts_api.routes.auth</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for contacts_api.routes.auth</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">Security</span><span class="p">,</span> <span class="n">BackgroundTasks</span><span class="p">,</span> <span class="n">Request</span>
+<span class="kn">from</span> <span class="nn">fastapi.security</span> <span class="kn">import</span> <span class="n">OAuth2PasswordRequestForm</span><span class="p">,</span> <span class="n">HTTPAuthorizationCredentials</span><span class="p">,</span> <span class="n">HTTPBearer</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">Session</span>
+
+<span class="kn">from</span> <span class="nn">contacts_api.database.db</span> <span class="kn">import</span> <span class="n">get_db</span>
+<span class="kn">from</span> <span class="nn">contacts_api.schemas</span> <span class="kn">import</span> <span class="n">UserModel</span><span class="p">,</span> <span class="n">UserResponse</span><span class="p">,</span> <span class="n">TokenModel</span><span class="p">,</span> <span class="n">RequestEmail</span>
+<span class="kn">from</span> <span class="nn">contacts_api.repository</span> <span class="kn">import</span> <span class="n">users</span> <span class="k">as</span> <span class="n">repository_users</span>
+<span class="kn">from</span> <span class="nn">contacts_api.services.auth</span> <span class="kn">import</span> <span class="n">auth_service</span>
+<span class="kn">from</span> <span class="nn">contacts_api.services.email</span> <span class="kn">import</span> <span class="n">send_email</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;/auth&#39;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;auth&#39;</span><span class="p">])</span>
+<span class="n">security</span> <span class="o">=</span> <span class="n">HTTPBearer</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="signup">
+<a class="viewcode-back" href="../../../index.html#contacts_api.routes.auth.signup">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;/signup&#39;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">UserResponse</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_201_CREATED</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">signup</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="n">UserModel</span><span class="p">,</span> <span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new user account.</span>
+
+<span class="sd">    :param body: The user details to create the account.</span>
+<span class="sd">    :type body: UserModel</span>
+<span class="sd">    :param background_tasks: Background tasks for sending confirmation email.</span>
+<span class="sd">    :type background_tasks: BackgroundTasks</span>
+<span class="sd">    :param request: The request details.</span>
+<span class="sd">    :type request: Request</span>
+<span class="sd">    :param db: The database session.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :raises HTTPException 409: If account with email already exists.</span>
+<span class="sd">    :return: User creation response.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">exist_user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">exist_user</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_409_CONFLICT</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s1">&#39;Account already exists&#39;</span><span class="p">)</span>
+    <span class="n">body</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">get_password_hash</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+    <span class="n">new_user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">create_user</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="n">send_email</span><span class="p">,</span> <span class="n">new_user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">new_user</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">new_user</span><span class="p">,</span> <span class="s1">&#39;detail&#39;</span><span class="p">:</span> <span class="s1">&#39;User successfully created. Check your email for confirmation&#39;</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="login">
+<a class="viewcode-back" href="../../../index.html#contacts_api.routes.auth.login">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;/login&#39;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">TokenModel</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="n">OAuth2PasswordRequestForm</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(),</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    User login with email and password.</span>
+
+<span class="sd">    :param body: The login credentials.</span>
+<span class="sd">    :type body: OAuth2PasswordRequestForm</span>
+<span class="sd">    :param db: The database session.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :raises HTTPException 401: If invalid credentials or email not confirmed.</span>
+<span class="sd">    :return: Access and refresh tokens.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s1">&#39;Invalid email&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s1">&#39;Email not confirmed&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">verify_password</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">password</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s1">&#39;Invalid password&#39;</span><span class="p">)</span>
+    
+    <span class="n">access_token</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">create_access_token</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;sub&#39;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">})</span>
+    <span class="n">refresh_token</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">create_refresh_token</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;sub&#39;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">})</span>
+    <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">update_token</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">refresh_token</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;access_token&#39;</span><span class="p">:</span> <span class="n">access_token</span><span class="p">,</span> <span class="s1">&#39;refresh_token&#39;</span><span class="p">:</span> <span class="n">refresh_token</span><span class="p">,</span> <span class="s1">&#39;token_type&#39;</span><span class="p">:</span> <span class="s1">&#39;bearer&#39;</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="confirmed_email">
+<a class="viewcode-back" href="../../../index.html#contacts_api.routes.auth.confirmed_email">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/confirmed_email/</span><span class="si">{token}</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">confirmed_email</span><span class="p">(</span><span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Confirm user&#39;s email address using verification token.</span>
+
+<span class="sd">    :param token: The verification token.</span>
+<span class="sd">    :type token: str</span>
+<span class="sd">    :param db: The database session.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :raises HTTPException 400: If verification error or email already confirmed.</span>
+<span class="sd">    :return: Confirmation message.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">get_email_from_token</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s1">&#39;Verification error&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Email is already confirmed&#39;</span><span class="p">}</span>
+    <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">confirmed_email</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Email confirmed&#39;</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="refresh_token">
+<a class="viewcode-back" href="../../../index.html#contacts_api.routes.auth.refresh_token">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;/refresh_token&#39;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">TokenModel</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">refresh_token</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Security</span><span class="p">(</span><span class="n">security</span><span class="p">),</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Refresh access token using refresh token.</span>
+
+<span class="sd">    :param credentials: The HTTP Authorization credentials with refresh token.</span>
+<span class="sd">    :type credentials: HTTPAuthorizationCredentials</span>
+<span class="sd">    :param db: The database session.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :raises HTTPException 401: If invalid refresh token.</span>
+<span class="sd">    :return: New access and refresh tokens.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">token</span> <span class="o">=</span> <span class="n">credentials</span><span class="o">.</span><span class="n">credentials</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">decode_refresh_token</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">refresh_token</span> <span class="o">!=</span> <span class="n">token</span><span class="p">:</span>
+        <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">update_token</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s1">&#39;Invalid refresh token&#39;</span><span class="p">)</span>
+    
+    <span class="n">access_token</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">create_access_token</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;sub&#39;</span><span class="p">:</span> <span class="n">email</span><span class="p">})</span>
+    <span class="n">refresh_token</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">create_refresh_token</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;sub&#39;</span><span class="p">:</span> <span class="n">email</span><span class="p">})</span>
+    <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">update_token</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">refresh_token</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;access_token&#39;</span><span class="p">:</span> <span class="n">access_token</span><span class="p">,</span> <span class="s1">&#39;refresh_token&#39;</span><span class="p">:</span> <span class="n">refresh_token</span><span class="p">,</span> <span class="s1">&#39;token_type&#39;</span><span class="p">:</span> <span class="s1">&#39;bearer&#39;</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="request_email">
+<a class="viewcode-back" href="../../../index.html#contacts_api.routes.auth.request_email">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;/request_email&#39;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">request_email</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="n">RequestEmail</span><span class="p">,</span> <span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+                        <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Request email verification for unconfirmed user.</span>
+
+<span class="sd">    :param body: The request email details.</span>
+<span class="sd">    :type body: RequestEmail</span>
+<span class="sd">    :param background_tasks: Background tasks for sending confirmation email.</span>
+<span class="sd">    :type background_tasks: BackgroundTasks</span>
+<span class="sd">    :param request: The request details.</span>
+<span class="sd">    :type request: Request</span>
+<span class="sd">    :param db: The database session.</span>
+<span class="sd">    :type db: Session</span>
+<span class="sd">    :return: Message indicating email sent for verification.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_users</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Your email is already confirmed&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">user</span><span class="p">:</span>
+        <span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="n">send_email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s1">&#39;Check your email to verify&#39;</span><span class="p">}</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">contacts_api 0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">contacts_api.routes.auth</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2024, Szczepan.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>

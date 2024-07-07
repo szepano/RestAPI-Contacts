@@ -1,4 +1,8 @@
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 class Settings(BaseSettings):
     sqlalchemy_database_url: str
@@ -16,7 +20,7 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str
 
     class Config:
-        env_file = "contacts_api/.env"
+        env_file = ".env"
         env_file_encoding = "utf-8"
 
 settings = Settings()

@@ -22,6 +22,15 @@ conf = ConnectionConfig(
 )
 
 async def send_email(email: EmailStr, username: str, host: str):
+    """
+    Sends an email with a verification token for email confirmation.
+
+    :param email: Email address of the recipient.
+    :param username: Username of the recipient.
+    :param host: Host URL for email verification link.
+    :raises ConnectionErrors: If there is an issue connecting to the email server.
+    """
+
     try:
         token_verification = auth_service.create_email_token({'sub': email})
         message = MessageSchema(
@@ -34,5 +43,5 @@ async def send_email(email: EmailStr, username: str, host: str):
         fm = FastMail(conf)
         await fm.send_message(message, template_name='email_template.html')
         
-    except ConnectionError as err:
-        print(err)
+    except ConnectionErrors as err:
+        raise ConnectionErrors(err)

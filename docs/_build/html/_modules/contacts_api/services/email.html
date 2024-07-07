@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>contacts_api.services.email &#8212; contacts_api 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=0f882399" />
+    <script src="../../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">contacts_api 0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">contacts_api.services.email</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for contacts_api.services.email</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span> <span class="nn">fastapi_mail</span> <span class="kn">import</span> <span class="n">FastMail</span><span class="p">,</span> <span class="n">MessageSchema</span><span class="p">,</span> <span class="n">MessageType</span><span class="p">,</span> <span class="n">ConnectionConfig</span>
+<span class="kn">from</span> <span class="nn">fastapi_mail.errors</span> <span class="kn">import</span> <span class="n">ConnectionErrors</span>
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">EmailStr</span>
+
+<span class="kn">from</span> <span class="nn">contacts_api.services.auth</span> <span class="kn">import</span> <span class="n">auth_service</span>
+<span class="kn">from</span> <span class="nn">contacts_api.conf.config</span> <span class="kn">import</span> <span class="n">settings</span>
+
+<span class="n">conf</span> <span class="o">=</span> <span class="n">ConnectionConfig</span><span class="p">(</span>
+    <span class="n">MAIL_USERNAME</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_username</span><span class="p">,</span>
+    <span class="n">MAIL_PASSWORD</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_password</span><span class="p">,</span>
+    <span class="n">MAIL_FROM</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_username</span><span class="p">,</span>
+    <span class="n">MAIL_PORT</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_port</span><span class="p">,</span>
+    <span class="n">MAIL_SERVER</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_server</span><span class="p">,</span>
+    <span class="n">MAIL_FROM_NAME</span><span class="o">=</span><span class="s2">&quot;Desired Name&quot;</span><span class="p">,</span>
+    <span class="n">MAIL_STARTTLS</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">MAIL_SSL_TLS</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">USE_CREDENTIALS</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">VALIDATE_CERTS</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">TEMPLATE_FOLDER</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s1">&#39;templates&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<div class="viewcode-block" id="send_email">
+<a class="viewcode-back" href="../../../index.html#contacts_api.services.email.send_email">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">send_email</span><span class="p">(</span><span class="n">email</span><span class="p">:</span> <span class="n">EmailStr</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sends an email with a verification token for email confirmation.</span>
+
+<span class="sd">    :param email: Email address of the recipient.</span>
+<span class="sd">    :param username: Username of the recipient.</span>
+<span class="sd">    :param host: Host URL for email verification link.</span>
+<span class="sd">    :raises ConnectionErrors: If there is an issue connecting to the email server.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_verification</span> <span class="o">=</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">create_email_token</span><span class="p">({</span><span class="s1">&#39;sub&#39;</span><span class="p">:</span> <span class="n">email</span><span class="p">})</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">MessageSchema</span><span class="p">(</span>
+            <span class="n">subject</span><span class="o">=</span><span class="s1">&#39;Confirm your email&#39;</span><span class="p">,</span>
+            <span class="n">recipients</span><span class="o">=</span><span class="p">[</span><span class="n">email</span><span class="p">],</span>
+            <span class="n">template_body</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="n">host</span><span class="p">,</span> <span class="s1">&#39;username&#39;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span> <span class="s1">&#39;token&#39;</span><span class="p">:</span> <span class="n">token_verification</span><span class="p">},</span>
+            <span class="n">subtype</span><span class="o">=</span><span class="n">MessageType</span><span class="o">.</span><span class="n">html</span>
+        <span class="p">)</span>
+
+        <span class="n">fm</span> <span class="o">=</span> <span class="n">FastMail</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span>
+        <span class="k">await</span> <span class="n">fm</span><span class="o">.</span><span class="n">send_message</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">template_name</span><span class="o">=</span><span class="s1">&#39;email_template.html&#39;</span><span class="p">)</span>
+        
+    <span class="k">except</span> <span class="n">ConnectionErrors</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ConnectionErrors</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">contacts_api 0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">contacts_api.services.email</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2024, Szczepan.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>

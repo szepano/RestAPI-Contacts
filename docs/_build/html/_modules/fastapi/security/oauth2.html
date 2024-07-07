@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fastapi.security.oauth2 &#8212; contacts_api 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css?v=0f882399" />
+    <script src="../../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">contacts_api 0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">fastapi.security.oauth2</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for fastapi.security.oauth2</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">from</span> <span class="nn">fastapi.exceptions</span> <span class="kn">import</span> <span class="n">HTTPException</span>
+<span class="kn">from</span> <span class="nn">fastapi.openapi.models</span> <span class="kn">import</span> <span class="n">OAuth2</span> <span class="k">as</span> <span class="n">OAuth2Model</span>
+<span class="kn">from</span> <span class="nn">fastapi.openapi.models</span> <span class="kn">import</span> <span class="n">OAuthFlows</span> <span class="k">as</span> <span class="n">OAuthFlowsModel</span>
+<span class="kn">from</span> <span class="nn">fastapi.param_functions</span> <span class="kn">import</span> <span class="n">Form</span>
+<span class="kn">from</span> <span class="nn">fastapi.security.base</span> <span class="kn">import</span> <span class="n">SecurityBase</span>
+<span class="kn">from</span> <span class="nn">fastapi.security.utils</span> <span class="kn">import</span> <span class="n">get_authorization_scheme_param</span>
+<span class="kn">from</span> <span class="nn">starlette.requests</span> <span class="kn">import</span> <span class="n">Request</span>
+<span class="kn">from</span> <span class="nn">starlette.status</span> <span class="kn">import</span> <span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">HTTP_403_FORBIDDEN</span>
+
+<span class="c1"># TODO: import from typing when deprecating Python 3.9</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Annotated</span><span class="p">,</span> <span class="n">Doc</span>
+
+
+<span class="k">class</span> <span class="nc">OAuth2PasswordRequestForm</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a dependency class to collect the `username` and `password` as form data</span>
+<span class="sd">    for an OAuth2 password flow.</span>
+
+<span class="sd">    The OAuth2 specification dictates that for a password flow the data should be</span>
+<span class="sd">    collected using form data (instead of JSON) and that it should have the specific</span>
+<span class="sd">    fields `username` and `password`.</span>
+
+<span class="sd">    All the initialization parameters are extracted from the request.</span>
+
+<span class="sd">    Read more about it in the</span>
+<span class="sd">    [FastAPI docs for Simple OAuth2 with Password and Bearer](https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/).</span>
+
+<span class="sd">    ## Example</span>
+
+<span class="sd">    ```python</span>
+<span class="sd">    from typing import Annotated</span>
+
+<span class="sd">    from fastapi import Depends, FastAPI</span>
+<span class="sd">    from fastapi.security import OAuth2PasswordRequestForm</span>
+
+<span class="sd">    app = FastAPI()</span>
+
+
+<span class="sd">    @app.post(&quot;/login&quot;)</span>
+<span class="sd">    def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):</span>
+<span class="sd">        data = {}</span>
+<span class="sd">        data[&quot;scopes&quot;] = []</span>
+<span class="sd">        for scope in form_data.scopes:</span>
+<span class="sd">            data[&quot;scopes&quot;].append(scope)</span>
+<span class="sd">        if form_data.client_id:</span>
+<span class="sd">            data[&quot;client_id&quot;] = form_data.client_id</span>
+<span class="sd">        if form_data.client_secret:</span>
+<span class="sd">            data[&quot;client_secret&quot;] = form_data.client_secret</span>
+<span class="sd">        return data</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    Note that for OAuth2 the scope `items:read` is a single scope in an opaque string.</span>
+<span class="sd">    You could have custom internal logic to separate it by colon caracters (`:`) or</span>
+<span class="sd">    similar, and get the two parts `items` and `read`. Many applications do that to</span>
+<span class="sd">    group and organize permissions, you could do it as well in your application, just</span>
+<span class="sd">    know that that it is application specific, it&#39;s not part of the specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">grant_type</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+            <span class="n">Form</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;password&quot;</span><span class="p">),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The OAuth2 spec says it is required and MUST be the fixed string</span>
+<span class="sd">                &quot;password&quot;. Nevertheless, this dependency class is permissive and</span>
+<span class="sd">                allows not passing it. If you want to enforce it, use instead the</span>
+<span class="sd">                `OAuth2PasswordRequestFormStrict` dependency.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">username</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                `username` string. The OAuth2 spec requires the exact field name</span>
+<span class="sd">                `username`.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">password</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                `password` string. The OAuth2 spec requires the exact field name</span>
+<span class="sd">                `password&quot;.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                A single string with actually several scopes separated by spaces. Each</span>
+<span class="sd">                scope is also a string.</span>
+
+<span class="sd">                For example, a single string with:</span>
+
+<span class="sd">                ```python</span>
+<span class="sd">                &quot;items:read items:write users:read profile openid&quot;</span>
+<span class="sd">                ````</span>
+
+<span class="sd">                would represent the scopes:</span>
+
+<span class="sd">                * `items:read`</span>
+<span class="sd">                * `items:write`</span>
+<span class="sd">                * `users:read`</span>
+<span class="sd">                * `profile`</span>
+<span class="sd">                * `openid`</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">client_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                If there&#39;s a `client_id`, it can be sent as part of the form fields.</span>
+<span class="sd">                But the OAuth2 specification recommends sending the `client_id` and</span>
+<span class="sd">                `client_secret` (if any) using HTTP Basic auth.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">client_secret</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                If there&#39;s a `client_password` (and a `client_id`), they can be sent</span>
+<span class="sd">                as part of the form fields. But the OAuth2 specification recommends</span>
+<span class="sd">                sending the `client_id` and `client_secret` (if any) using HTTP Basic</span>
+<span class="sd">                auth.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grant_type</span> <span class="o">=</span> <span class="n">grant_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scopes</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span> <span class="o">=</span> <span class="n">client_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_secret</span> <span class="o">=</span> <span class="n">client_secret</span>
+
+
+<span class="k">class</span> <span class="nc">OAuth2PasswordRequestFormStrict</span><span class="p">(</span><span class="n">OAuth2PasswordRequestForm</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a dependency class to collect the `username` and `password` as form data</span>
+<span class="sd">    for an OAuth2 password flow.</span>
+
+<span class="sd">    The OAuth2 specification dictates that for a password flow the data should be</span>
+<span class="sd">    collected using form data (instead of JSON) and that it should have the specific</span>
+<span class="sd">    fields `username` and `password`.</span>
+
+<span class="sd">    All the initialization parameters are extracted from the request.</span>
+
+<span class="sd">    The only difference between `OAuth2PasswordRequestFormStrict` and</span>
+<span class="sd">    `OAuth2PasswordRequestForm` is that `OAuth2PasswordRequestFormStrict` requires the</span>
+<span class="sd">    client to send the form field `grant_type` with the value `&quot;password&quot;`, which</span>
+<span class="sd">    is required in the OAuth2 specification (it seems that for no particular reason),</span>
+<span class="sd">    while for `OAuth2PasswordRequestForm` `grant_type` is optional.</span>
+
+<span class="sd">    Read more about it in the</span>
+<span class="sd">    [FastAPI docs for Simple OAuth2 with Password and Bearer](https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/).</span>
+
+<span class="sd">    ## Example</span>
+
+<span class="sd">    ```python</span>
+<span class="sd">    from typing import Annotated</span>
+
+<span class="sd">    from fastapi import Depends, FastAPI</span>
+<span class="sd">    from fastapi.security import OAuth2PasswordRequestForm</span>
+
+<span class="sd">    app = FastAPI()</span>
+
+
+<span class="sd">    @app.post(&quot;/login&quot;)</span>
+<span class="sd">    def login(form_data: Annotated[OAuth2PasswordRequestFormStrict, Depends()]):</span>
+<span class="sd">        data = {}</span>
+<span class="sd">        data[&quot;scopes&quot;] = []</span>
+<span class="sd">        for scope in form_data.scopes:</span>
+<span class="sd">            data[&quot;scopes&quot;].append(scope)</span>
+<span class="sd">        if form_data.client_id:</span>
+<span class="sd">            data[&quot;client_id&quot;] = form_data.client_id</span>
+<span class="sd">        if form_data.client_secret:</span>
+<span class="sd">            data[&quot;client_secret&quot;] = form_data.client_secret</span>
+<span class="sd">        return data</span>
+<span class="sd">    ```</span>
+
+<span class="sd">    Note that for OAuth2 the scope `items:read` is a single scope in an opaque string.</span>
+<span class="sd">    You could have custom internal logic to separate it by colon caracters (`:`) or</span>
+<span class="sd">    similar, and get the two parts `items` and `read`. Many applications do that to</span>
+<span class="sd">    group and organize permissions, you could do it as well in your application, just</span>
+<span class="sd">    know that that it is application specific, it&#39;s not part of the specification.</span>
+
+
+<span class="sd">    grant_type: the OAuth2 spec says it is required and MUST be the fixed string &quot;password&quot;.</span>
+<span class="sd">        This dependency is strict about it. If you want to be permissive, use instead the</span>
+<span class="sd">        OAuth2PasswordRequestForm dependency class.</span>
+<span class="sd">    username: username string. The OAuth2 spec requires the exact field name &quot;username&quot;.</span>
+<span class="sd">    password: password string. The OAuth2 spec requires the exact field name &quot;password&quot;.</span>
+<span class="sd">    scope: Optional string. Several scopes (each one a string) separated by spaces. E.g.</span>
+<span class="sd">        &quot;items:read items:write users:read profile openid&quot;</span>
+<span class="sd">    client_id: optional string. OAuth2 recommends sending the client_id and client_secret (if any)</span>
+<span class="sd">        using HTTP Basic auth, as: client_id:client_secret</span>
+<span class="sd">    client_secret: optional string. OAuth2 recommends sending the client_id and client_secret (if any)</span>
+<span class="sd">        using HTTP Basic auth, as: client_id:client_secret</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">grant_type</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;password&quot;</span><span class="p">),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The OAuth2 spec says it is required and MUST be the fixed string</span>
+<span class="sd">                &quot;password&quot;. This dependency is strict about it. If you want to be</span>
+<span class="sd">                permissive, use instead the `OAuth2PasswordRequestForm` dependency</span>
+<span class="sd">                class.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">username</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                `username` string. The OAuth2 spec requires the exact field name</span>
+<span class="sd">                `username`.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">password</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                `password` string. The OAuth2 spec requires the exact field name</span>
+<span class="sd">                `password&quot;.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                A single string with actually several scopes separated by spaces. Each</span>
+<span class="sd">                scope is also a string.</span>
+
+<span class="sd">                For example, a single string with:</span>
+
+<span class="sd">                ```python</span>
+<span class="sd">                &quot;items:read items:write users:read profile openid&quot;</span>
+<span class="sd">                ````</span>
+
+<span class="sd">                would represent the scopes:</span>
+
+<span class="sd">                * `items:read`</span>
+<span class="sd">                * `items:write`</span>
+<span class="sd">                * `users:read`</span>
+<span class="sd">                * `profile`</span>
+<span class="sd">                * `openid`</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">client_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                If there&#39;s a `client_id`, it can be sent as part of the form fields.</span>
+<span class="sd">                But the OAuth2 specification recommends sending the `client_id` and</span>
+<span class="sd">                `client_secret` (if any) using HTTP Basic auth.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">client_secret</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+            <span class="n">Form</span><span class="p">(),</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                If there&#39;s a `client_password` (and a `client_id`), they can be sent</span>
+<span class="sd">                as part of the form fields. But the OAuth2 specification recommends</span>
+<span class="sd">                sending the `client_id` and `client_secret` (if any) using HTTP Basic</span>
+<span class="sd">                auth.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">grant_type</span><span class="o">=</span><span class="n">grant_type</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span>
+            <span class="n">client_secret</span><span class="o">=</span><span class="n">client_secret</span><span class="p">,</span>
+        <span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">OAuth2</span><span class="p">(</span><span class="n">SecurityBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the base class for OAuth2 authentication, an instance of it would be used</span>
+<span class="sd">    as a dependency. All other OAuth2 classes inherit from it and customize it for</span>
+<span class="sd">    each OAuth2 flow.</span>
+
+<span class="sd">    You normally would not create a new class inheriting from it but use one of the</span>
+<span class="sd">    existing subclasses, and maybe compose them if you want to support multiple flows.</span>
+
+<span class="sd">    Read more about it in the</span>
+<span class="sd">    [FastAPI docs for Security](https://fastapi.tiangolo.com/tutorial/security/).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">flows</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">OAuthFlowsModel</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The dictionary of OAuth2 flows.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">OAuthFlowsModel</span><span class="p">(),</span>
+        <span class="n">scheme_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                Security scheme name.</span>
+
+<span class="sd">                It will be included in the generated OpenAPI (e.g. visible at `/docs`).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                Security scheme description.</span>
+
+<span class="sd">                It will be included in the generated OpenAPI (e.g. visible at `/docs`).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_error</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">bool</span><span class="p">,</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                By default, if no HTTP Authorization header is provided, required for</span>
+<span class="sd">                OAuth2 authentication, it will automatically cancel the request and</span>
+<span class="sd">                send the client an error.</span>
+
+<span class="sd">                If `auto_error` is set to `False`, when the HTTP Authorization header</span>
+<span class="sd">                is not available, instead of erroring out, the dependency result will</span>
+<span class="sd">                be `None`.</span>
+
+<span class="sd">                This is useful when you want to have optional authentication.</span>
+
+<span class="sd">                It is also useful when you want to have authentication that can be</span>
+<span class="sd">                provided in one of multiple optional ways (for example, with OAuth2</span>
+<span class="sd">                or in a cookie).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">OAuth2Model</span><span class="p">(</span>
+            <span class="n">flows</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="n">OAuthFlowsModel</span><span class="p">,</span> <span class="n">flows</span><span class="p">),</span> <span class="n">description</span><span class="o">=</span><span class="n">description</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scheme_name</span> <span class="o">=</span> <span class="n">scheme_name</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_error</span> <span class="o">=</span> <span class="n">auto_error</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="n">authorization</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">authorization</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_error</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
+                    <span class="n">status_code</span><span class="o">=</span><span class="n">HTTP_403_FORBIDDEN</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Not authenticated&quot;</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">authorization</span>
+
+
+<span class="k">class</span> <span class="nc">OAuth2PasswordBearer</span><span class="p">(</span><span class="n">OAuth2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    OAuth2 flow for authentication using a bearer token obtained with a password.</span>
+<span class="sd">    An instance of it would be used as a dependency.</span>
+
+<span class="sd">    Read more about it in the</span>
+<span class="sd">    [FastAPI docs for Simple OAuth2 with Password and Bearer](https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tokenUrl</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The URL to obtain the OAuth2 token. This would be the *path operation*</span>
+<span class="sd">                that has `OAuth2PasswordRequestForm` as a dependency.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">scheme_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                Security scheme name.</span>
+
+<span class="sd">                It will be included in the generated OpenAPI (e.g. visible at `/docs`).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scopes</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The OAuth2 scopes that would be required by the *path operations* that</span>
+<span class="sd">                use this dependency.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                Security scheme description.</span>
+
+<span class="sd">                It will be included in the generated OpenAPI (e.g. visible at `/docs`).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_error</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">bool</span><span class="p">,</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                By default, if no HTTP Authorization header is provided, required for</span>
+<span class="sd">                OAuth2 authentication, it will automatically cancel the request and</span>
+<span class="sd">                send the client an error.</span>
+
+<span class="sd">                If `auto_error` is set to `False`, when the HTTP Authorization header</span>
+<span class="sd">                is not available, instead of erroring out, the dependency result will</span>
+<span class="sd">                be `None`.</span>
+
+<span class="sd">                This is useful when you want to have optional authentication.</span>
+
+<span class="sd">                It is also useful when you want to have authentication that can be</span>
+<span class="sd">                provided in one of multiple optional ways (for example, with OAuth2</span>
+<span class="sd">                or in a cookie).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">scopes</span><span class="p">:</span>
+            <span class="n">scopes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">flows</span> <span class="o">=</span> <span class="n">OAuthFlowsModel</span><span class="p">(</span>
+            <span class="n">password</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;tokenUrl&quot;</span><span class="p">:</span> <span class="n">tokenUrl</span><span class="p">,</span> <span class="s2">&quot;scopes&quot;</span><span class="p">:</span> <span class="n">scopes</span><span class="p">})</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">flows</span><span class="o">=</span><span class="n">flows</span><span class="p">,</span>
+            <span class="n">scheme_name</span><span class="o">=</span><span class="n">scheme_name</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">auto_error</span><span class="o">=</span><span class="n">auto_error</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="n">authorization</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">)</span>
+        <span class="n">scheme</span><span class="p">,</span> <span class="n">param</span> <span class="o">=</span> <span class="n">get_authorization_scheme_param</span><span class="p">(</span><span class="n">authorization</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">authorization</span> <span class="ow">or</span> <span class="n">scheme</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;bearer&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_error</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
+                    <span class="n">status_code</span><span class="o">=</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span>
+                    <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Not authenticated&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;WWW-Authenticate&quot;</span><span class="p">:</span> <span class="s2">&quot;Bearer&quot;</span><span class="p">},</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">param</span>
+
+
+<span class="k">class</span> <span class="nc">OAuth2AuthorizationCodeBearer</span><span class="p">(</span><span class="n">OAuth2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    OAuth2 flow for authentication using a bearer token obtained with an OAuth2 code</span>
+<span class="sd">    flow. An instance of it would be used as a dependency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">authorizationUrl</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">tokenUrl</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The URL to obtain the OAuth2 token.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">refreshUrl</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The URL to refresh the token and obtain a new one.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scheme_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                Security scheme name.</span>
+
+<span class="sd">                It will be included in the generated OpenAPI (e.g. visible at `/docs`).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scopes</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The OAuth2 scopes that would be required by the *path operations* that</span>
+<span class="sd">                use this dependency.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                Security scheme description.</span>
+
+<span class="sd">                It will be included in the generated OpenAPI (e.g. visible at `/docs`).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">auto_error</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">bool</span><span class="p">,</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                By default, if no HTTP Authorization header is provided, required for</span>
+<span class="sd">                OAuth2 authentication, it will automatically cancel the request and</span>
+<span class="sd">                send the client an error.</span>
+
+<span class="sd">                If `auto_error` is set to `False`, when the HTTP Authorization header</span>
+<span class="sd">                is not available, instead of erroring out, the dependency result will</span>
+<span class="sd">                be `None`.</span>
+
+<span class="sd">                This is useful when you want to have optional authentication.</span>
+
+<span class="sd">                It is also useful when you want to have authentication that can be</span>
+<span class="sd">                provided in one of multiple optional ways (for example, with OAuth2</span>
+<span class="sd">                or in a cookie).</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">scopes</span><span class="p">:</span>
+            <span class="n">scopes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">flows</span> <span class="o">=</span> <span class="n">OAuthFlowsModel</span><span class="p">(</span>
+            <span class="n">authorizationCode</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span>
+                <span class="n">Any</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;authorizationUrl&quot;</span><span class="p">:</span> <span class="n">authorizationUrl</span><span class="p">,</span>
+                    <span class="s2">&quot;tokenUrl&quot;</span><span class="p">:</span> <span class="n">tokenUrl</span><span class="p">,</span>
+                    <span class="s2">&quot;refreshUrl&quot;</span><span class="p">:</span> <span class="n">refreshUrl</span><span class="p">,</span>
+                    <span class="s2">&quot;scopes&quot;</span><span class="p">:</span> <span class="n">scopes</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">flows</span><span class="o">=</span><span class="n">flows</span><span class="p">,</span>
+            <span class="n">scheme_name</span><span class="o">=</span><span class="n">scheme_name</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">auto_error</span><span class="o">=</span><span class="n">auto_error</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="n">authorization</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">)</span>
+        <span class="n">scheme</span><span class="p">,</span> <span class="n">param</span> <span class="o">=</span> <span class="n">get_authorization_scheme_param</span><span class="p">(</span><span class="n">authorization</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">authorization</span> <span class="ow">or</span> <span class="n">scheme</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;bearer&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_error</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
+                    <span class="n">status_code</span><span class="o">=</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span>
+                    <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Not authenticated&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;WWW-Authenticate&quot;</span><span class="p">:</span> <span class="s2">&quot;Bearer&quot;</span><span class="p">},</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># pragma: nocover</span>
+        <span class="k">return</span> <span class="n">param</span>
+
+
+<span class="k">class</span> <span class="nc">SecurityScopes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a special class that you can define in a parameter in a dependency to</span>
+<span class="sd">    obtain the OAuth2 scopes required by all the dependencies in the same chain.</span>
+
+<span class="sd">    This way, multiple dependencies can have different scopes, even when used in the</span>
+<span class="sd">    same *path operation*. And with this, you can access all the scopes required in</span>
+<span class="sd">    all those dependencies in a single place.</span>
+
+<span class="sd">    Read more about it in the</span>
+<span class="sd">    [FastAPI docs for OAuth2 scopes](https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scopes</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                This will be filled by FastAPI.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scopes</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                The list of all the scopes required by dependencies.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">scopes</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scope_str</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">Doc</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                All the scopes required by all the dependencies in a single string</span>
+<span class="sd">                separated by spaces, as defined in the OAuth2 specification.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scopes</span><span class="p">)</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">contacts_api 0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">fastapi.security.oauth2</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2024, Szczepan.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>
