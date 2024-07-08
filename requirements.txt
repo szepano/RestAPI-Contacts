@@ -14,3 +14,4 @@ fastapi_limiter
 python-dotenv
 cloudinary
 sphinx
+pytest
